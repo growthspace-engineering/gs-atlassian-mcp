@@ -39,3 +39,4 @@ yarn-error.log*
 .temp/ 
 
 mcp-atlassian-server-bundle*.zip
+.specstory/

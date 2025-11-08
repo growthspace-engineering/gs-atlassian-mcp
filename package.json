@@ -1,5 +1,5 @@
 {
-  "name": "@phuc-nt/mcp-atlassian-server",
+  "name": "kb-mcp-atlassian-server",
   "version": "2.1.1",
   "description": "MCP Server for interacting with Atlassian Jira and Confluence",
   "type": "module",
@@ -11,7 +11,7 @@
     "assets"
   ],
   "bin": {
-    "mcp-atlassian-server": "dist/index.js"
+    "mcp-atlassian-server": "dist/cli.js"
   },
   "scripts": {
     "test": "jest",
@@ -35,6 +35,7 @@
     "@modelcontextprotocol/sdk": "^1.11.0",
     "axios": "^1.6.2",
     "axios-retry": "^4.5.0",
+    "commander": "^14.0.2",
     "cross-fetch": "^4.1.0",
     "dotenv": "^16.4.1",
     "jira.js": "^3.0.0",

@@ -5,6 +5,7 @@ import { registerAllTools } from './tools/index.js';
 import { registerAllResources } from './resources/index.js';
 import { Logger } from './utils/logger.js';
 import { AtlassianConfig } from './utils/atlassian-api-base.js';
+import { pathToFileURL } from 'url';
 
 // Load environment variables
 dotenv.config();
@@ -12,43 +13,51 @@ dotenv.config();
 // Initialize logger
 const logger = Logger.getLogger('MCP:Server');
 
-// Get Atlassian config from environment variables
-const ATLASSIAN_SITE_NAME = process.env.ATLASSIAN_SITE_NAME;
-const ATLASSIAN_USER_EMAIL = process.env.ATLASSIAN_USER_EMAIL;
-const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN;
-
-if (!ATLASSIAN_SITE_NAME || !ATLASSIAN_USER_EMAIL || !ATLASSIAN_API_TOKEN) {
-  logger.error('Missing Atlassian credentials in environment variables');
-  process.exit(1);
+export interface ServerConfig {
+  atlassianSiteName: string;
+  atlassianUserEmail: string;
+  atlassianApiToken: string;
+  mcpServerName?: string;
+  mcpServerVersion?: string;
 }
 
-// Create Atlassian config
-const atlassianConfig: AtlassianConfig = {
-  baseUrl: ATLASSIAN_SITE_NAME.includes('.atlassian.net') 
-    ? `https://${ATLASSIAN_SITE_NAME}` 
-    : ATLASSIAN_SITE_NAME,
-  email: ATLASSIAN_USER_EMAIL,
-  apiToken: ATLASSIAN_API_TOKEN
-};
+// Start the server based on configured transport type
+export async function startServer(config: ServerConfig) {
+  const {
+    atlassianSiteName,
+    atlassianUserEmail,
+    atlassianApiToken,
+    mcpServerName = process.env.MCP_SERVER_NAME || 'kb-mcp-atlassian-server',
+    mcpServerVersion = process.env.MCP_SERVER_VERSION || '1.0.0'
+  } = config;
 
-logger.info('Initializing MCP Atlassian Server...');
+  // Create Atlassian config
+  const atlassianConfig: AtlassianConfig = {
+    baseUrl: atlassianSiteName.includes('.atlassian.net') 
+      ? `https://${atlassianSiteName}` 
+      : atlassianSiteName,
+    email: atlassianUserEmail,
+    apiToken: atlassianApiToken
+  };
 
-// Track registered resources for logging
-const registeredResources: Array<{ name: string; pattern: string }> = [];
+  logger.info('Initializing MCP Atlassian Server...');
 
-// Initialize MCP server with capabilities
-const server = new McpServer({
-  name: process.env.MCP_SERVER_NAME || 'phuc-nt/mcp-atlassian-server',
-  version: process.env.MCP_SERVER_VERSION || '1.0.0',
-  capabilities: {
-    resources: {},  // Declare support for resources capability
-    tools: {}
-  }
-});
+  // Track registered resources for logging
+  const registeredResources: Array<{ name: string; pattern: string }> = [];
 
-// Create a context-aware server proxy for resources
-const serverProxy = new Proxy(server, {
-  get(target, prop) {
+  // Initialize MCP server with capabilities
+  const server = new McpServer({
+    name: mcpServerName,
+    version: mcpServerVersion,
+    capabilities: {
+      resources: {},  // Declare support for resources capability
+      tools: {}
+    }
+  });
+
+  // Create a context-aware server proxy for resources
+  const serverProxy = new Proxy(server, {
+    get(target, prop) {
     if (prop === 'resource') {
       // Override the resource method to inject context
       return (name: string, pattern: any, handler: any) => {
@@ -97,42 +106,40 @@ const serverProxy = new Proxy(server, {
   }
 });
 
-// Log config info for debugging
-logger.info(`Atlassian config available: ${JSON.stringify(atlassianConfig, null, 2)}`);
+  // Log config info for debugging
+  logger.info(`Atlassian config available: ${JSON.stringify(atlassianConfig, null, 2)}`);
 
-// Tool server proxy for consistent handling
-const toolServerProxy: any = {
-  tool: (name: string, description: string, schema: any, handler: any) => {
-    // Register tool with a context-aware handler wrapper
-    server.tool(name, description, schema, async (params: any, context: any) => {
-      // Add Atlassian config to context
-      context.atlassianConfig = atlassianConfig;
-      
-      logger.debug(`Tool ${name} called with context keys: [${Object.keys(context)}]`);
-      
-      try {
-        return await handler(params, context);
-      } catch (error) {
-        logger.error(`Error in tool handler for ${name}:`, error);
-        return {
-          content: [{ type: 'text', text: `Error in tool handler: ${error instanceof Error ? error.message : String(error)}` }],
-          isError: true
-        };
-      }
-    });
-  }
-};
+  // Tool server proxy for consistent handling
+  const toolServerProxy: any = {
+    tool: (name: string, description: string, schema: any, handler: any) => {
+      // Register tool with a context-aware handler wrapper
+      server.tool(name, description, schema, async (params: any, context: any) => {
+        // Add Atlassian config to context
+        context.atlassianConfig = atlassianConfig;
+        
+        logger.debug(`Tool ${name} called with context keys: [${Object.keys(context)}]`);
+        
+        try {
+          return await handler(params, context);
+        } catch (error) {
+          logger.error(`Error in tool handler for ${name}:`, error);
+          return {
+            content: [{ type: 'text', text: `Error in tool handler: ${error instanceof Error ? error.message : String(error)}` }],
+            isError: true
+          };
+        }
+      });
+    }
+  };
 
-// Register all tools
-logger.info('Registering all MCP Tools...');
-registerAllTools(toolServerProxy);
+  // Register all tools
+  logger.info('Registering all MCP Tools...');
+  registerAllTools(toolServerProxy);
 
-// Register all resources
-logger.info('Registering MCP Resources...');
-registerAllResources(serverProxy);
+  // Register all resources
+  logger.info('Registering MCP Resources...');
+  registerAllResources(serverProxy);
 
-// Start the server based on configured transport type
-async function startServer() {
   try {
     // Always use STDIO transport for highest reliability
     const stdioTransport = new StdioServerTransport();
@@ -140,9 +147,9 @@ async function startServer() {
     logger.info('MCP Atlassian Server started with STDIO transport');
     
     // Print startup info
-    logger.info(`MCP Server Name: ${process.env.MCP_SERVER_NAME || 'phuc-nt/mcp-atlassian-server'}`);
-    logger.info(`MCP Server Version: ${process.env.MCP_SERVER_VERSION || '1.0.0'}`);
-    logger.info(`Connected to Atlassian site: ${ATLASSIAN_SITE_NAME}`);
+    logger.info(`MCP Server Name: ${mcpServerName}`);
+    logger.info(`MCP Server Version: ${mcpServerVersion}`);
+    logger.info(`Connected to Atlassian site: ${atlassianSiteName}`);
     
     logger.info('Registered tools:');
     // Liệt kê tất cả các tool đã đăng ký
@@ -179,9 +186,32 @@ async function startServer() {
     }
   } catch (error) {
     logger.error('Failed to start MCP Server:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
-// Start server
-startServer(); 
+// If this file is run directly (not imported), start server with env vars
+// This maintains backward compatibility for existing usage
+const isMainModule = import.meta.url === pathToFileURL(process.argv[1] || '').href || 
+                     process.argv[1]?.endsWith('index.js') ||
+                     process.argv[1]?.endsWith('index.ts');
+
+if (isMainModule) {
+  const ATLASSIAN_SITE_NAME = process.env.ATLASSIAN_SITE_NAME;
+  const ATLASSIAN_USER_EMAIL = process.env.ATLASSIAN_USER_EMAIL;
+  const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN;
+
+  if (!ATLASSIAN_SITE_NAME || !ATLASSIAN_USER_EMAIL || !ATLASSIAN_API_TOKEN) {
+    logger.error('Missing Atlassian credentials in environment variables');
+    process.exit(1);
+  }
+
+  startServer({
+    atlassianSiteName: ATLASSIAN_SITE_NAME,
+    atlassianUserEmail: ATLASSIAN_USER_EMAIL,
+    atlassianApiToken: ATLASSIAN_API_TOKEN
+  }).catch((error) => {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  });
+} 
