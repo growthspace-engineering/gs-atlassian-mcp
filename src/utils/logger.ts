@@ -11,14 +11,22 @@ export enum LogLevel {
   DEBUG = 3
 }
 
-// Define colors for output
+// Check if running as MCP server (stdio mode) - disable colors and use stderr
+// When stdout is not a TTY, we're likely running as an MCP server via stdio
+const isMcpServer = process.env.MCP_SERVER_MODE !== 'false' && !process.stdout.isTTY;
+
+// Define colors for output (disabled when running as MCP server)
 const COLORS = {
-  RESET: '\x1b[0m',
-  RED: '\x1b[31m',
-  YELLOW: '\x1b[33m',
-  BLUE: '\x1b[34m',
-  GRAY: '\x1b[90m'
+  RESET: isMcpServer ? '' : '\x1b[0m',
+  RED: isMcpServer ? '' : '\x1b[31m',
+  YELLOW: isMcpServer ? '' : '\x1b[33m',
+  BLUE: isMcpServer ? '' : '\x1b[34m',
+  GRAY: isMcpServer ? '' : '\x1b[90m'
 };
+
+// Use stderr for all logging when running as MCP server (stdout must be JSON only)
+// For MCP servers, we must use stderr to avoid interfering with JSON protocol on stdout
+const useStderr = isMcpServer;
 
 // Get log level from environment variable
 const getLogLevelFromEnv = (): LogLevel => {
@@ -59,8 +67,14 @@ export class Logger {
    */
   error(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.ERROR) {
-      console.error(`${COLORS.RED}[ERROR][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.error(data);
+      const output = `${COLORS.RED}[ERROR][${this.moduleName}]${COLORS.RESET} ${message}`;
+      if (useStderr) {
+        console.error(output);
+        if (data) console.error(data);
+      } else {
+        console.error(output);
+        if (data) console.error(data);
+      }
     }
   }
 
@@ -71,8 +85,14 @@ export class Logger {
    */
   warn(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.WARN) {
-      console.warn(`${COLORS.YELLOW}[WARN][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.warn(data);
+      const output = `${COLORS.YELLOW}[WARN][${this.moduleName}]${COLORS.RESET} ${message}`;
+      if (useStderr) {
+        console.error(output);
+        if (data) console.error(data);
+      } else {
+        console.warn(output);
+        if (data) console.warn(data);
+      }
     }
   }
 
@@ -83,8 +103,14 @@ export class Logger {
    */
   info(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.INFO) {
-      console.info(`${COLORS.BLUE}[INFO][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.info(data);
+      const output = `${COLORS.BLUE}[INFO][${this.moduleName}]${COLORS.RESET} ${message}`;
+      if (useStderr) {
+        console.error(output);
+        if (data) console.error(data);
+      } else {
+        console.info(output);
+        if (data) console.info(data);
+      }
     }
   }
 
@@ -95,8 +121,14 @@ export class Logger {
    */
   debug(message: string, data?: any): void {
     if (Logger.logLevel >= LogLevel.DEBUG) {
-      console.debug(`${COLORS.GRAY}[DEBUG][${this.moduleName}]${COLORS.RESET} ${message}`);
-      if (data) console.debug(data);
+      const output = `${COLORS.GRAY}[DEBUG][${this.moduleName}]${COLORS.RESET} ${message}`;
+      if (useStderr) {
+        console.error(output);
+        if (data) console.error(data);
+      } else {
+        console.debug(output);
+        if (data) console.debug(data);
+      }
     }
   }
 
@@ -116,4 +148,4 @@ export class Logger {
   static setLogLevel(level: LogLevel): void {
     Logger.logLevel = level;
   }
-} 
+}

@@ -17,8 +17,10 @@ program
   .option('--atlassian-user-email <email>', 'Atlassian user email')
   .option('--atlassian-api-token <token>', 'Atlassian API token')
   .option('--mcp-server-name <name>', 'MCP server name', 'kb-mcp-atlassian-server')
-  .option('--mcp-server-version <version>', 'MCP server version', '1.0.0')
-  .parse(process.argv);
+  .option('--mcp-server-version <version>', 'MCP server version', '1.0.0');
+
+// Parse arguments - commander will handle --help and --version automatically and exit
+program.parse(process.argv);
 
 const options = program.opts();
 
@@ -56,4 +58,3 @@ startServer({
   console.error('Failed to start server:', error);
   process.exit(1);
 });
-
