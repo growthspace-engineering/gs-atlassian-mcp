@@ -1,6 +1,6 @@
 {
   "name": "@growthspace-engineering/gs-atlassian-mcp",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "MCP Server for interacting with Atlassian Jira and Confluence",
   "type": "module",
   "main": "dist/index.js",
