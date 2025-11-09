@@ -1,5 +1,5 @@
 {
-  "name": "kb-mcp-atlassian-server",
+  "name": "@growthspace-engineering/gs-atlassian-mcp",
   "version": "2.1.1",
   "description": "MCP Server for interacting with Atlassian Jira and Confluence",
   "type": "module",
@@ -52,16 +52,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/phuc-nt/mcp-atlassian-server.git"
+    "url": "git+https://github.com/growthspace-engineering/gs-atlassian-mcp.git"
   },
-  "homepage": "https://github.com/phuc-nt/mcp-atlassian-server#readme",
+  "homepage": "https://github.com/growthspace-engineering/gs-atlassian-mcp#readme",
   "bugs": {
-    "url": "https://github.com/phuc-nt/mcp-atlassian-server/issues"
+    "url": "https://github.com/growthspace-engineering/gs-atlassian-mcp/issues"
   },
   "engines": {
     "node": ">=16.0.0"
   },
   "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
     "access": "public"
   }
 }

@@ -1,0 +1,81 @@
+name: Release Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@growthspace-engineering'
+          always-auth: true
+      
+      - name: Configure Git
+        run: |
+          git config user.name "gr0wth-b0t"
+          git config user.email "gsBot@growthspace.com"
+      
+      - name: Configure npm for GitHub Packages
+        env:
+          PUBLIC_RELEASE_BOT_TOKEN: ${{ secrets.PUBLIC_RELEASE_BOT_TOKEN }}
+        run: |
+          # GitHub Packages npmrc
+          echo "@growthspace-engineering:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${PUBLIC_RELEASE_BOT_TOKEN}" >> .npmrc
+      
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PUBLIC_RELEASE_BOT_TOKEN }}
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Bump version
+        id: version
+        run: |
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          NEW_VERSION=$(npm version $VERSION_TYPE --no-git-tag-version | sed 's/v//')
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumped version to $NEW_VERSION"
+      
+      - name: Commit version bump
+        env:
+          PUBLIC_RELEASE_BOT_TOKEN: ${{ secrets.PUBLIC_RELEASE_BOT_TOKEN }}
+        run: |
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+          git remote set-url origin https://${PUBLIC_RELEASE_BOT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+          git push origin main
+      
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PUBLIC_RELEASE_BOT_TOKEN }}
+
