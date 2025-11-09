@@ -17,6 +17,9 @@ coverage/
 .env.test
 .env.production
 
+# npm config (created dynamically in CI)
+.npmrc
+
 # Logs
 logs
 *.log
