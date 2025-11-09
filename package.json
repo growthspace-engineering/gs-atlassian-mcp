@@ -33,7 +33,7 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.0",
-    "axios": "^1.6.2",
+    "axios": "^1.13.2",
     "axios-retry": "^4.5.0",
     "commander": "^14.0.2",
     "cross-fetch": "^4.1.0",
